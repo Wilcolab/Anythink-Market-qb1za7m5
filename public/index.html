@@ -1,49 +1,83 @@
 <html>
-  <head>
-    <title>Calculator</title>
-    <link rel="stylesheet" href="default.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-    <script src="client.js"></script>
-  </head>
-  <body onLoad="setValue(0)">
-    <div class="container">
-      <div id="results">
-        <div id="result"><span class="digit0">0</span></div>
+
+<head></head>
+  <title>Modern Calculator</title>
+  <link rel="stylesheet" href="default.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="client.js" defer></script>
+</head>
+
+<body>
+  <div class="calculator-container" role="application" aria-label="Calculator">
+    <div class="calculator-header">
+      <div class="calculator-title">
+        <i class="fas fa-calculator"></i> Modern Calculator
       </div>
-
-      <div id="loading" style="visibility:hidden"></div>
-
-      <div class="box">
-        <div class="calculator">
-          <div class="calculator-buttons">
-            <button class="btn span-2"></button>
-            <button class="btn" onClick="clearPressed()">C</button>
-            <button class="btn" onClick="clearPressed()">CE</button>
-
-            <button class="btn" onClick="numberPressed(7)">7</button>
-            <button class="btn" onClick="numberPressed(8)">8</button>
-            <button class="btn" onClick="numberPressed(9)">9</button>
-            <button class="btn" onClick="operationPressed('/')">&divide;</button>
-
-            <button class="btn" onClick="numberPressed(4)">4</button>
-            <button class="btn" onClick="numberPressed(5)">5</button>
-            <button class="btn" onClick="numberPressed(6)">6</button>
-            <button class="btn" onClick="operationPressed('*')">x</button>
-
-            <button class="btn" onClick="numberPressed(1)">1</button>
-            <button class="btn" onClick="numberPressed(2)">2</button>
-            <button class="btn" onClick="numberPressed(3)">3</button>
-            <button class="btn" onClick="operationPressed('-')">-</button>
-
-            <button class="btn" onClick="numberPressed(0)">0</button>
-            <button class="btn" onClick="decimalPressed()">.</button>
-            <button class="btn" onClick="operationPressed('+')">+</button>
-            <button class="btn" onClick="equalPressed()">=</button>
-
-            <!-- TODO: Buttons -->
-          </div>
-        </div>
+      <div class="calculator-mode">
+        Standard
       </div>
     </div>
-  </body>
+
+    <div class="display-container">
+      <div class="calculation-display" id="calculation"></div>
+      <div class="result-display" id="result">0</div>
+    </div>
+
+    <div class="keypad">
+      <button class="key function" onclick="clearPressed()" aria-label="All Clear">
+        AC
+      </button>
+      <button class="key function" onclick="clearEntryPressed()" aria-label="Clear Entry">
+        CE
+      </button>
+      <button class="key function" onclick="signPressed()" aria-label="Toggle Sign">
+        ±
+      </button>
+      <button class="key operator" onclick="operationPressed('/')" aria-label="Divide">
+        ÷
+      </button>
+
+      <button class="key" onclick="numberPressed(7)">7</button>
+      <button class="key" onclick="numberPressed(8)">8</button>
+      <button class="key" onclick="numberPressed(9)">9</button>
+      <button class="key operator" onclick="operationPressed('*')" aria-label="Multiply">
+        ×
+      </button>
+
+      <button class="key" onclick="numberPressed(4)">4</button>
+      <button class="key" onclick="numberPressed(5)">5</button>
+      <button class="key" onclick="numberPressed(6)">6</button>
+      <button class="key operator" onclick="operationPressed('-')" aria-label="Subtract">
+        −
+      </button>
+
+      <button class="key" onclick="numberPressed(1)">1</button>
+      <button class="key" onclick="numberPressed(2)">2</button>
+      <button class="key" onclick="numberPressed(3)">3</button>
+      <button class="key operator" onclick="operationPressed('+')" aria-label="Add">
+        +
+      </button>
+
+      <button class="key zero" onclick="numberPressed(0)">0</button>
+      <button class="key decimal" onclick="decimalPressed()" aria-label="Decimal Point">
+        .
+      </button>
+      <button class="key equals" onclick="equalPressed()" aria-label="Equals">
+        =
+      </button>
+    </div>
+
+    <div class="loading-overlay" id="loading">
+      <div class="spinner"></div>
+    </div>
+
+    <div class="calculator-footer">
+      Press keyboard keys for faster input
+    </div>
+  </div>
+
+
+</body>
+
 </html>
