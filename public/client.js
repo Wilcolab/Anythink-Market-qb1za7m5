@@ -6,11 +6,17 @@ let shouldResetDisplay = false;
 let calculationHistory = '';
 
 // DOM elements
-const resultDisplay = document.getElementById('result');
-const calculationDisplay = document.getElementById('calculation');
-const loadingOverlay = document.getElementById('loading');
-const keys = document.querySelectorAll('.key');
+let resultDisplay;
+let calculationDisplay;
+let loadingOverlay;
+let keys;
 
+document.addEventListener('DOMContentLoaded', () => {
+    resultDisplay = document.getElementById('result');
+    calculationDisplay = document.getElementById('calculation');
+    loadingOverlay = document.getElementById('loading');
+    keys = document.querySelectorAll('.key');
+});
 // Update the display
 function updateDisplay() {
     // Format the current value for display
