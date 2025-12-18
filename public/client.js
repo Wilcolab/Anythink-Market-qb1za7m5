@@ -1,200 +1,329 @@
-'use strict';
+// Calculator state variables
+let currentValue = '0';
+let previousValue = null;
+let currentOperation = null;
+let shouldResetDisplay = false;
+let calculationHistory = '';
 
-var value = 0;
+// DOM elements
+let resultDisplay;
+let calculationDisplay;
+let loadingOverlay;
+let keys;
 
-var states = {
-    "start": 0,
-    "operand1": 1,
-    "operator": 2,
-    "operand2": 3,
-    "complete": 4
-};
+document.addEventListener('DOMContentLoaded', () => {
+    resultDisplay = document.getElementById('result');
+    calculationDisplay = document.getElementById('calculation');
+    loadingOverlay = document.getElementById('loading');
+    keys = document.querySelectorAll('.key');
+});
+// Update the display
+function updateDisplay() {
+    // Format the current value for display
+    let displayValue = currentValue;
 
-var state = states.start;
+    // Handle very large or small numbers
+    const numValue = parseFloat(currentValue);
 
-var operand1 = 0;
-var operand2 = 0;
-var operation = null;
-
-function calculate(operand1, operand2, operation) {
-    var uri = location.origin + "/arithmetic";
-
-    // TODO: Add operator
-    switch (operation) {
-        case '+':
-            uri += "?operation=add";
-            break;
-        case '-':
-            uri += "?operation=subtract";
-            break;
-        case '*':
-            uri += "?operation=multiply";
-            break;
-        case '/':
-            uri += "?operation=divide";
-            break;
-        default:
-            setError();
-            return;
-    }
-
-    uri += "&operand1=" + encodeURIComponent(operand1);
-    uri += "&operand2=" + encodeURIComponent(operand2);
-
-    setLoading(true);
-
-    var http = new XMLHttpRequest();
-    http.open("GET", uri, true);
-    http.onload = function () {
-        setLoading(false);
-
-        if (http.status == 200) {
-            var response = JSON.parse(http.responseText);
-            setValue(response.result);
-        } else {
-            setError();
+    if (!isNaN(numValue)) {
+        if (numValue > 99999999 || numValue < -99999999) {
+            displayValue = numValue.toExponential(6);
+        } else if (numValue !== 0 && Math.abs(numValue) < 0.000001) {
+            displayValue = numValue.toExponential(6);
         }
-    };
-    http.send(null);
+    }
+
+    // Update the main display
+    resultDisplay.textContent = displayValue;
+    resultDisplay.classList.remove('error');
+
+    // Update the calculation history display
+    calculationDisplay.textContent = calculationHistory;
 }
 
+// Reset the calculator to initial state
 function clearPressed() {
-    setValue(0);
-
-    operand1 = 0;
-    operand2 = 0;
-    operation = null;
-    state = states.start;
+    currentValue = '0';
+    previousValue = null;
+    currentOperation = null;
+    shouldResetDisplay = false;
+    calculationHistory = '';
+    updateDisplay();
 }
 
+// Clear the current entry only
 function clearEntryPressed() {
-    setValue(0);
-    state = (state == states.operand2) ? states.operator : states.start;
+    currentValue = '0';
+    updateDisplay();
 }
 
-function numberPressed(n) {
-    var value = getValue();
-
-    if (state == states.start || state == states.complete) {
-        value = n;
-        state = (n == '0' ? states.start : states.operand1);
-    } else if (state == states.operator) {
-        value = n;
-        state = (n == '0' ? states.operator : states.operand2);
-    } else if (value.replace(/[-\.]/g, '').length < 8) {
-        value += n;
-    }
-
-    value += "";
-
-    setValue(value);
-}
-
-function decimalPressed() {
-    if (state == states.start || state == states.complete) {
-        setValue('0.');
-        state = states.operand1;
-    } else if (state == states.operator) {
-        setValue('0.');
-        state = states.operand2;
-    } else if (!getValue().toString().includes('.')) {
-        setValue(getValue() + '.');
-    }
-}
-
+// Toggle the sign of the current value
 function signPressed() {
-    var value = getValue();
-
-    if (value != 0) {
-        setValue(-1 * value);
+    if (currentValue !== '0') {
+        if (currentValue.charAt(0) === '-') {
+            currentValue = currentValue.substring(1);
+        } else {
+            currentValue = '-' + currentValue;
+        }
+        updateDisplay();
     }
 }
 
-function operationPressed(op) {
-    operand1 = getValue();
-    operation = op;
-    state = states.operator;
+// Handle number button presses
+function numberPressed(num) {
+    // If we just completed a calculation or pressed an operator, reset the display
+    if (shouldResetDisplay || currentValue === '0') {
+        currentValue = num.toString();
+        shouldResetDisplay = false;
+    } else {
+        // Limit the number of digits to prevent overflow
+        if (currentValue.replace(/[-.]/g, '').length < 12) {
+            currentValue += num.toString();
+        }
+    }
+
+    updateDisplay();
 }
 
+// Handle decimal point button press
+function decimalPressed() {
+    // If we just completed a calculation or pressed an operator, reset the display
+    if (shouldResetDisplay) {
+        currentValue = '0.';
+        shouldResetDisplay = false;
+    } else if (!currentValue.includes('.')) {
+        currentValue += '.';
+    }
+
+    updateDisplay();
+}
+
+// Handle operation button presses
+function operationPressed(op) {
+    // If we already have a previous value and operation, calculate it first
+    if (previousValue !== null && currentOperation !== null && !shouldResetDisplay) {
+        calculateResult();
+    }
+
+    // Store the current value and operation
+    previousValue = currentValue;
+    currentOperation = op;
+    shouldResetDisplay = true;
+
+    // Update the calculation history
+    calculationHistory = `${previousValue} ${op}`;
+    updateDisplay();
+}
+
+// Handle equals button press
 function equalPressed() {
-    if (state < states.operand2) {
-        state = states.complete;
+    // If we have both values and an operation, calculate the result
+    if (previousValue !== null && currentOperation !== null) {
+        calculateResult();
+    }
+}
+
+// Perform the calculation
+function calculateResult() {
+    // Don't calculate if we don't have all the required values
+    if (previousValue === null || currentOperation === null) {
         return;
     }
 
-    if (state == states.operand2) {
-        operand2 = getValue();
-        state = states.complete;
-    } else if (state == states.complete) {
-        operand1 = getValue();
+    // Parse the values as numbers
+    const prev = parseFloat(previousValue);
+    const current = parseFloat(currentValue);
+
+    // Update calculation history
+    calculationHistory = `${previousValue} ${currentOperation} ${currentValue} =`;
+
+    let result;
+
+    // Perform the calculation based on the operation
+    switch (currentOperation) {
+        case '+':
+            result = prev + current;
+            break;
+        case '-':
+            result = prev - current;
+            break;
+        case '*':
+            result = prev * current;
+            break;
+        case '/':
+            // Handle division by zero
+            if (current === 0) {
+                resultDisplay.textContent = "Cannot divide by zero";
+                resultDisplay.classList.add('error');
+                previousValue = null;
+                currentOperation = null;
+                shouldResetDisplay = true;
+                return;
+            }
+            result = prev / current;
+            break;
+        default:
+            return;
     }
 
-    calculate(operand1, operand2, operation);
-}
+    // Format the result to avoid floating point precision issues
+    result = parseFloat(result.toPrecision(12));
 
-// TODO: Add key press logics
-document.addEventListener('keypress', (event) => {
-    if (event.key.match(/^\d+$/)) {
-        numberPressed(event.key);
-    } else if (event.key == '.') {
-        decimalPressed();
-    } else if (event.key.match(/^[-*+/]$/)) {
-        operationPressed(event.key);
-    } else if (event.key == '=') {
-        equalPressed();
-    }
-});
-
-function getValue() {
-    return value;
-}
-
-function setValue(n) {
-    value = n;
-    var displayValue = value;
-
-    if (displayValue > 99999999) {
-        displayValue = displayValue.toExponential(4);
-    } else if (displayValue < -99999999) {
-        displayValue = displayValue.toExponential(4);
-    } else if (displayValue > 0 && displayValue < 0.0000001) {
-        displayValue = displayValue.toExponential(4);
-    } else if (displayValue < 0 && displayValue > -0.0000001) {
-        displayValue = displayValue.toExponential(3);
-    }
-
-    var chars = displayValue.toString().split("");
-    var html = "";
-
-    for (var c of chars) {
-        if (c == '-') {
-            html += "<span class=\"resultchar negative\">" + c + "</span>";
-        } else if (c == '.') {
-            html += "<span class=\"resultchar decimal\">" + c + "</span>";
-        } else if (c == 'e') {
-            html += "<span class=\"resultchar exponent\">e</span>";
-        } else if (c != '+') {
-            html += "<span class=\"resultchar digit" + c + "\">" + c + "</span>";
+    // Handle overflow
+    if (result > 1e12 || result < -1e12) {
+        currentValue = result.toExponential(6);
+    } else {
+        // Remove trailing zeros after decimal point
+        currentValue = result.toString();
+        if (currentValue.includes('.')) {
+            currentValue = currentValue.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.$/, '');
         }
     }
 
-    document.getElementById("result").innerHTML = html;
+    // Reset operation state
+    previousValue = null;
+    currentOperation = null;
+    shouldResetDisplay = true;
+
+    updateDisplay();
 }
 
-function setError(n) {
-    document.getElementById("result").innerHTML = "ERROR";
+// Simulate API call for calculation (for compatibility with original code)
+function simulateAPICalculation(operand1, operand2, operation) {
+    setLoading(true);
+
+    // Simulate network delay
+    setTimeout(() => {
+        // Parse the values
+        const prev = parseFloat(operand1);
+        const current = parseFloat(operand2);
+
+        let result;
+
+        // Perform the calculation based on the operation
+        switch (operation) {
+            case '+':
+                result = prev + current;
+                break;
+            case '-':
+                result = prev - current;
+                break;
+            case '*':
+                result = prev * current;
+                break;
+            case '/':
+                if (current === 0) {
+                    setError("Cannot divide by zero");
+                    setLoading(false);
+                    return;
+                }
+                result = prev / current;
+                break;
+            default:
+                setError("Invalid operation");
+                setLoading(false);
+                return;
+        }
+
+        // Format the result
+        result = parseFloat(result.toPrecision(12));
+
+        // Handle overflow
+        if (result > 1e12 || result < -1e12) {
+            currentValue = result.toExponential(6);
+        } else {
+            currentValue = result.toString();
+            if (currentValue.includes('.')) {
+                currentValue = currentValue.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.$/, '');
+            }
+        }
+
+        // Update the display
+        updateDisplay();
+        setLoading(false);
+
+        // Reset operation state
+        previousValue = null;
+        currentOperation = null;
+        shouldResetDisplay = true;
+
+    }, 500); // Simulate 500ms delay
 }
 
+// Set loading state
 function setLoading(loading) {
     if (loading) {
-        document.getElementById("loading").style.visibility = "visible";
+        loadingOverlay.classList.add('active');
+        keys.forEach(key => {
+            key.classList.add('disabled');
+            key.disabled = true;
+        });
     } else {
-        document.getElementById("loading").style.visibility = "hidden";
-    }
-
-    var buttons = document.querySelectorAll("BUTTON");
-
-    for (var i = 0; i < buttons.length; i++) {
-        buttons[i].disabled = loading;
+        loadingOverlay.classList.remove('active');
+        keys.forEach(key => {
+            key.classList.remove('disabled');
+            key.disabled = false;
+        });
     }
 }
+
+// Set error state
+function setError(message) {
+    resultDisplay.textContent = message;
+    resultDisplay.classList.add('error');
+}
+
+// Handle keyboard input
+document.addEventListener('keydown', (event) => {
+    // Prevent default behavior for calculator keys
+    if (event.key.match(/[\d+\-*/.=]|Enter|Escape/)) {
+        event.preventDefault();
+    }
+
+    // Handle number keys
+    if (event.key.match(/^\d$/)) {
+        numberPressed(parseInt(event.key));
+    }
+
+    // Handle decimal point
+    else if (event.key === '.') {
+        decimalPressed();
+    }
+
+    // Handle operators
+    else if (event.key === '+') {
+        operationPressed('+');
+    }
+    else if (event.key === '-') {
+        operationPressed('-');
+    }
+    else if (event.key === '*') {
+        operationPressed('*');
+    }
+    else if (event.key === '/') {
+        operationPressed('/');
+    }
+
+    // Handle equals and Enter key
+    else if (event.key === '=' || event.key === 'Enter') {
+        equalPressed();
+    }
+
+    // Handle Escape key for clear
+    else if (event.key === 'Escape') {
+        clearPressed();
+    }
+
+    // Handle Backspace for clear entry
+    else if (event.key === 'Backspace') {
+        clearEntryPressed();
+    }
+
+    // Handle +/- key
+    else if (event.key === 's' || event.key === 'S') {
+        signPressed();
+    }
+});
+
+// Initialize the display
+updateDisplay();
